@@ -289,11 +289,16 @@ export default function WardrobeItemDetail({ image, score, scenario, onBack }: W
               {/* Scenario Match */}
               <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Scenario: {scenario}</h3>
-                <p className="text-3xl font-bold mb-1" style={{ textShadow: "0 0 2px #fff, 0 0 4px #fff" }}>
+                <p className="text-3xl font-bold mb-1" 
+                   style={{ 
+                     color: metrics[0].value >= 90 ? '#4ade80' : 
+                            metrics[0].value >= 75 ? '#22d3ee' : 
+                            metrics[0].value >= 60 ? '#facc15' : 
+                            metrics[0].value >= 40 ? '#fb923c' : 
+                            '#ef4444',
+                     textShadow: "-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)" 
+                   }}>
                   {getMatchTitle(metrics[0].value)}
-                </p>
-                <p className="text-2xl font-semibold mb-4" style={{ textShadow: "0 0 1px #fff, 0 0 2px #fff" }}>
-                  {metrics[0].value}% Match
                 </p>
               </div>
 
