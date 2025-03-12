@@ -1,5 +1,5 @@
 interface ClothingScoreProps {
-  score: number | null
+  score: number
   scenario: string
   onAddToWardrobe: () => void
   onRetake: () => void
