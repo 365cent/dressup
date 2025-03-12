@@ -1,21 +1,18 @@
 {
-  "name": "Dress Fitting App",
-  "short_name": "DressFit",
-  "description": "A mobile app for dress fitting and style recommendations",
+  "name": "DressUp - AI Fashion Assistant",
+  "short_name": "DressUp",
+  "description": "AI-powered fashion analysis and outfit scoring for any occasion",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#ffffff",
+  "background_color": "#000000",
+  "theme_color": "#000000",
+  "orientation": "portrait",
   "icons": [
     {
-      "src": "/icon-192x192.png",
+      "src": "icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "/icon-512x512.png",
-      "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
