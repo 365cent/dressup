@@ -4,21 +4,58 @@ import { useState } from "react"
 import Image from "next/image"
 import WardrobeItemDetail from "./WardrobeItemDetail"
 
+interface WearingItem {
+  item: string
+  category: string
+  color: string
+  pattern?: string
+  material?: string
+  brand?: string
+  luxury: boolean
+  clean?: boolean
+  comfortable?: boolean
+  fit_style?: string
+  season?: string
+  opacity?: string
+  color_match?: string
+  trendiness?: string
+  formalness?: string
+  user_rating: number
+  length?: string
+  stretchable?: boolean
+  waist_fit?: string
+  shining?: boolean
+}
+
+interface PersonData {
+  type: string
+  gender: string
+  age: string
+  skin: string
+  pose: string
+  expression: string
+  fit: string
+  wearing: WearingItem[]
+}
+
+
 interface WardrobeProps {
-  items: Array<{ image: string; score: number }>
+  items: Array<{ image: string; scenario: string; score?: number; details: PersonData }>
   scenario: string
+  score?: number
   onBack: () => void
 }
 
 export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
-  const [selectedItem, setSelectedItem] = useState<{ image: string; score: number } | null>(null)
+  const [selectedItem, setSelectedItem] = useState<{ image: string; scenario: string; score?: number; details: PersonData } | null>(null)
 
   if (selectedItem) {
     return (
       <WardrobeItemDetail
         image={selectedItem.image}
-        score={selectedItem.score}
-        scenario={scenario}
+        scenario={selectedItem.scenario}
+        score={selectedItem.score || 0}
+        details={selectedItem.details}
         onBack={() => setSelectedItem(null)}
       />
     )
@@ -42,7 +79,7 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
               className="rounded-lg object-cover w-full h-full"
             />
             <div className="absolute bottom-2 right-2 bg-black bg-opacity-50 rounded-full p-2">
-              <span className="text-lg font-semibold">{item.score}</span>
+              <span className="text-lg font-semibold">{item.details.fit}</span>
             </div>
           </div>
         ))}

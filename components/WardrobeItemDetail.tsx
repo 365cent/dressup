@@ -46,92 +46,24 @@ interface Metric {
 
 interface WardrobeItemDetailProps {
   image: string
-  score: number
   scenario: string
+  score: number
+  details: PersonData
   onBack: () => void
 }
 
-export default function WardrobeItemDetail({ image, score, scenario, onBack }: WardrobeItemDetailProps) {
+export default function WardrobeItemDetail({ image, scenario, score, details, onBack }: WardrobeItemDetailProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
 
-  // This would normally come from an API, but for demo purposes we'll use the provided data
-  const personData: PersonData = {
-    type: "people",
-    gender: "female",
-    age: "25-34",
-    skin: "medium",
-    pose: "standing",
-    expression: "smiling",
-    fit: "excellent",
-    wearing: [
-      {
-        item: "shirt",
-        category: "top",
-        color: "white",
-        pattern: "plain",
-        material: "linen",
-        brand: "Uniqlo",
-        luxury: false,
-        clean: true,
-        comfortable: true,
-        fit_style: "regular",
-        season: "summer",
-        opacity: "semi-transparent",
-        color_match: "excellent",
-        trendiness: "high",
-        formalness: "casual",
-        user_rating: 4.7,
-      },
-      {
-        item: "pants",
-        category: "bottom",
-        color: "black",
-        pattern: "plain",
-        material: "denim",
-        brand: "Levi's",
-        luxury: false,
-        clean: true,
-        comfortable: true,
-        fit_style: "slim",
-        length: "full-length",
-        stretchable: true,
-        waist_fit: "perfect",
-        color_match: "excellent",
-        trendiness: "high",
-        formalness: "casual",
-        user_rating: 4.5,
-      },
-      {
-        item: "shoes",
-        category: "footwear",
-        color: "white",
-        brand: "Nike",
-        luxury: false,
-        clean: true,
-        comfortable: true,
-        season: "all-season",
-        formalness: "casual",
-        user_rating: 4.8,
-      },
-      {
-        item: "watch",
-        category: "accessory",
-        color: "silver",
-        material: "metal",
-        brand: "Rolex",
-        luxury: true,
-        shining: true,
-        user_rating: 4.9,
-      },
-    ],
-  }
+  // Use the provided details
+  const personData = details;
 
   const metrics: Metric[] = [
-    { name: "Occasion Match", value: 90 },
-    { name: "Comfort", value: 85 },
-    { name: "Fit Confidence", value: 92 },
-    { name: "Color Harmony", value: 88 },
+    { name: "Occasion Match", value: score },
+    { name: "Comfort", value: Math.round(score * 0.95) },
+    { name: "Fit Confidence", value: Math.round(score * 1.02) },
+    { name: "Color Harmony", value: Math.round(score * 0.98) },
   ]
 
   const toggleSection = (section: string) => {
@@ -291,14 +223,14 @@ export default function WardrobeItemDetail({ image, score, scenario, onBack }: W
                 <h3 className="text-lg font-medium mb-2">Scenario: {scenario}</h3>
                 <p className="text-3xl font-bold mb-1" 
                    style={{ 
-                     color: metrics[0].value >= 90 ? '#4ade80' : 
-                            metrics[0].value >= 75 ? '#22d3ee' : 
-                            metrics[0].value >= 60 ? '#facc15' : 
-                            metrics[0].value >= 40 ? '#fb923c' : 
+                     color: score >= 90 ? '#4ade80' : 
+                            score >= 75 ? '#22d3ee' : 
+                            score >= 60 ? '#facc15' : 
+                            score >= 40 ? '#fb923c' : 
                             '#ef4444',
                      textShadow: "-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)" 
                    }}>
-                  {getMatchTitle(metrics[0].value)}
+                  {getMatchTitle(score)}
                 </p>
               </div>
 
@@ -339,4 +271,3 @@ export default function WardrobeItemDetail({ image, score, scenario, onBack }: W
     </div>
   )
 }
-
