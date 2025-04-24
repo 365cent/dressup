@@ -1,9 +1,11 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import Image from "next/image"
-import { X, ChevronRight, ChevronLeft, User, Shirt, ShoppingBag, Watch } from "lucide-react"
+import { X, ChevronRight, ChevronLeft, User, Shirt, ShoppingBag, Watch, Lightbulb, Search } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
+import { getStyleSuggestions } from "@/lib/ml-service"
+import { useRouter } from "next/navigation"
 
 interface WearingItem {
   item: string
@@ -50,14 +52,25 @@ interface WardrobeItemDetailProps {
   score: number
   details: PersonData
   onBack: () => void
+  onViewDetailedAnalysis?: (imageData: string) => void
 }
 
-export default function WardrobeItemDetail({ image, scenario, score, details, onBack }: WardrobeItemDetailProps) {
+export default function WardrobeItemDetail({
+  image,
+  scenario,
+  score,
+  details,
+  onBack,
+  onViewDetailedAnalysis,
+}: WardrobeItemDetailProps) {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [suggestions, setSuggestions] = useState<string[]>([])
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false)
+  const router = useRouter()
 
   // Use the provided details
-  const personData = details;
+  const personData = details
 
   const metrics: Metric[] = [
     { name: "Occasion Match", value: score },
@@ -65,6 +78,23 @@ export default function WardrobeItemDetail({ image, scenario, score, details, on
     { name: "Fit Confidence", value: Math.round(score * 1.02) },
     { name: "Color Harmony", value: Math.round(score * 0.98) },
   ]
+
+  // Load AI suggestions when component mounts
+  useEffect(() => {
+    const loadSuggestions = async () => {
+      setLoadingSuggestions(true)
+      try {
+        const result = await getStyleSuggestions(image, scenario)
+        setSuggestions(result)
+      } catch (error) {
+        console.error("Error loading suggestions:", error)
+      } finally {
+        setLoadingSuggestions(false)
+      }
+    }
+
+    loadSuggestions()
+  }, [image, scenario])
 
   const toggleSection = (section: string) => {
     if (expandedSection === section) {
@@ -95,6 +125,16 @@ export default function WardrobeItemDetail({ image, scenario, score, details, on
     if (matchPercentage >= 60) return "Good Match"
     if (matchPercentage >= 40) return "Fair Match"
     return "Poor Match"
+  }
+
+  const handleViewDetailedAnalysis = () => {
+    if (onViewDetailedAnalysis) {
+      onViewDetailedAnalysis(image)
+    } else {
+      // Store the image in sessionStorage for the detailed analysis page
+      sessionStorage.setItem("analysisImage", image)
+      router.push("/detailed-analysis")
+    }
   }
 
   const renderWearingItems = () => {
@@ -169,6 +209,28 @@ export default function WardrobeItemDetail({ image, scenario, score, details, on
     ))
   }
 
+  const renderSuggestions = () => {
+    if (loadingSuggestions) {
+      return (
+        <div className="flex justify-center items-center py-4">
+          <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+          <span>Loading suggestions...</span>
+        </div>
+      )
+    }
+
+    return (
+      <div className="space-y-2">
+        {suggestions.map((suggestion, index) => (
+          <div key={index} className="flex items-start p-2 bg-white bg-opacity-5 rounded-lg">
+            <Lightbulb className="w-5 h-5 mr-2 text-yellow-400 shrink-0 mt-0.5" />
+            <p className="text-sm">{suggestion}</p>
+          </div>
+        ))}
+      </div>
+    )
+  }
+
   return (
     <div className="relative h-full w-full bg-black text-white overflow-hidden">
       {/* Full screen image */}
@@ -187,6 +249,15 @@ export default function WardrobeItemDetail({ image, scenario, score, details, on
         className="absolute top-6 right-6 z-20 bg-black bg-opacity-50 backdrop-blur-sm rounded-full p-2 hover:bg-opacity-70 transition-all duration-300"
       >
         <X className="w-6 h-6" />
+      </button>
+
+      {/* Detailed Analysis button */}
+      <button
+        onClick={handleViewDetailedAnalysis}
+        className="absolute top-6 right-20 z-20 bg-black bg-opacity-50 backdrop-blur-sm rounded-full p-2 hover:bg-opacity-70 transition-all duration-300"
+        title="View Detailed Analysis"
+      >
+        <Search className="w-6 h-6" />
       </button>
 
       {/* Sidebar toggle button */}
@@ -221,21 +292,38 @@ export default function WardrobeItemDetail({ image, scenario, score, details, on
               {/* Scenario Match */}
               <div className="mb-6">
                 <h3 className="text-lg font-medium mb-2">Scenario: {scenario}</h3>
-                <p className="text-3xl font-bold mb-1" 
-                   style={{ 
-                     color: score >= 90 ? '#4ade80' : 
-                            score >= 75 ? '#22d3ee' : 
-                            score >= 60 ? '#facc15' : 
-                            score >= 40 ? '#fb923c' : 
-                            '#ef4444',
-                     textShadow: "-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)" 
-                   }}>
+                <p
+                  className="text-3xl font-bold mb-1"
+                  style={{
+                    color:
+                      score >= 90
+                        ? "#4ade80"
+                        : score >= 75
+                          ? "#22d3ee"
+                          : score >= 60
+                            ? "#facc15"
+                            : score >= 40
+                              ? "#fb923c"
+                              : "#ef4444",
+                    textShadow:
+                      "-1px -1px 0 rgba(0,0,0,0.3), 1px -1px 0 rgba(0,0,0,0.3), -1px 1px 0 rgba(0,0,0,0.3), 1px 1px 0 rgba(0,0,0,0.3)",
+                  }}
+                >
                   {getMatchTitle(score)}
                 </p>
               </div>
 
               {/* Metrics */}
               <div className="mb-6">{renderMetrics()}</div>
+
+              {/* AI Suggestions */}
+              <div className="mb-6">
+                <div className="flex items-center mb-4">
+                  <Lightbulb className="w-5 h-5 mr-2 text-yellow-400" />
+                  <h3 className="text-xl font-medium">Style Suggestions</h3>
+                </div>
+                {renderSuggestions()}
+              </div>
 
               {/* Person details */}
               <div className="mb-6">
