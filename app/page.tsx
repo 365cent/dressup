@@ -6,7 +6,6 @@ import ScenarioPrompt from "@/components/ScenarioPrompt"
 import ClothingScore from "@/components/ClothingScore"
 import Wardrobe from "@/components/Wardrobe"
 import { analyzeOutfit, matchOutfitToOccasion } from "@/lib/ml-service"
-import DetailedOutfitAnalysis from "@/components/DetailedOutfitAnalysis"
 import { initVisibilityTracking } from "@/lib/visibility-utils"
 
 interface OutfitScores {
@@ -72,10 +71,6 @@ export default function Home() {
   const [analyzedScore, setAnalyzedScore] = useState<number | null>(null)
 
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([])
-
-  // Add a new state for detailed analysis
-  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false)
-  const [analysisImage, setAnalysisImage] = useState<string | null>(null)
 
   // Initialize visibility tracking
   useEffect(() => {
@@ -215,9 +210,6 @@ export default function Home() {
       )}
       {currentStep === "wardrobe" && (
         <Wardrobe items={wardrobe} scenario={scenario} score={analyzedScore ?? 0} onBack={resetToCamera} />
-      )}
-      {showDetailedAnalysis && analysisImage && (
-        <DetailedOutfitAnalysis imageData={analysisImage} onBack={() => setShowDetailedAnalysis(false)} />
       )}
     </main>
   )

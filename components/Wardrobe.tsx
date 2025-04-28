@@ -4,7 +4,6 @@ import { useState } from "react"
 import Image from "next/image"
 import { useRouter } from "next/navigation"
 import WardrobeItemDetail from "./WardrobeItemDetail"
-import DetailedOutfitAnalysis from "./DetailedOutfitAnalysis"
 import { BarChart, Search } from "lucide-react"
 
 interface WearingItem {
@@ -56,13 +55,7 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
     details: PersonData
   } | null>(null)
   const [filter, setFilter] = useState<string>("all")
-  const [showDetailedAnalysis, setShowDetailedAnalysis] = useState(false)
-  const [analysisImage, setAnalysisImage] = useState<string | null>(null)
   const router = useRouter()
-
-  if (showDetailedAnalysis && analysisImage) {
-    return <DetailedOutfitAnalysis imageData={analysisImage} onBack={() => setShowDetailedAnalysis(false)} />
-  }
 
   if (selectedItem) {
     return (
@@ -72,10 +65,6 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
         score={selectedItem.score || 0}
         details={selectedItem.details}
         onBack={() => setSelectedItem(null)}
-        onViewDetailedAnalysis={(imageData) => {
-          setAnalysisImage(imageData)
-          setShowDetailedAnalysis(true)
-        }}
       />
     )
   }
@@ -135,16 +124,6 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
                     <span className="text-lg font-semibold">{item.score}</span>
                   </div>
                 </div>
-                <button
-                  className="absolute top-2 right-2 bg-black bg-opacity-50 rounded-full p-1.5 hover:bg-opacity-70 transition-all"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setAnalysisImage(item.image)
-                    setShowDetailedAnalysis(true)
-                  }}
-                >
-                  <Search className="w-4 h-4" />
-                </button>
               </div>
             </div>
           ))}
