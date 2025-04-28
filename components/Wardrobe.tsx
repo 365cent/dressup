@@ -87,7 +87,7 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
   const filteredItems = filter === "all" ? items : items.filter((item) => item.scenario.toLowerCase() === filter)
 
   const navigateToMLDashboard = () => {
-    router.push("/ml-dashboard")
+    router.push("/dashboard")
   }
 
   return (
@@ -164,7 +164,7 @@ export default function Wardrobe({ items, scenario, onBack }: WardrobeProps) {
           className="flex items-center bg-white bg-opacity-10 text-white px-6 py-3 rounded-full font-semibold hover:bg-opacity-20 transition duration-300"
         >
           <BarChart className="w-5 h-5 mr-2" />
-          ML Dashboard
+          Dashboard
         </button>
       </div>
     </div>

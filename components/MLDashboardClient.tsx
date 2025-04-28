@@ -23,12 +23,13 @@ import {
   Download,
   List,
   Grid,
+  X,
 } from "lucide-react"
 import { executeMCPOperation, type AnalysisResult, type AnalysisFilters, type AnalysisStats } from "@/lib/mcp-protocol"
 import { recordFeedback, getFeedbackData, clearFeedbackData } from "@/lib/ml-service"
 
-// Colors for charts
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884d8", "#82ca9d"]
+// Colors for charts - lighter palette
+const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#6ee7b7"]
 
 interface MLDashboardClientProps {
   initialAnalyses: AnalysisResult[]
@@ -124,11 +125,11 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "success":
-        return <Badge className="bg-green-500">{status}</Badge>
+        return <Badge className="bg-emerald-100 text-emerald-800 hover:bg-emerald-200">{status}</Badge>
       case "error":
-        return <Badge className="bg-red-500">{status}</Badge>
+        return <Badge className="bg-red-100 text-red-800 hover:bg-red-200">{status}</Badge>
       case "processing":
-        return <Badge className="bg-yellow-500">{status}</Badge>
+        return <Badge className="bg-amber-100 text-amber-800 hover:bg-amber-200">{status}</Badge>
       default:
         return <Badge>{status}</Badge>
     }
@@ -138,24 +139,22 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
   const getTypeBadge = (type: string) => {
     switch (type) {
       case "outfit":
-        return <Badge className="bg-blue-500">{type}</Badge>
+        return <Badge className="bg-blue-100 text-blue-800 hover:bg-blue-200">{type}</Badge>
       case "detailed":
-        return <Badge className="bg-purple-500">{type}</Badge>
+        return <Badge className="bg-purple-100 text-purple-800 hover:bg-purple-200">{type}</Badge>
       case "occasion":
-        return <Badge className="bg-orange-500">{type}</Badge>
+        return <Badge className="bg-orange-100 text-orange-800 hover:bg-orange-200">{type}</Badge>
       default:
         return <Badge>{type}</Badge>
     }
   }
 
   const handleUpvote = () => {
-    // Record an upvote for the current analysis
     recordFeedback("placeholder-image", { score: 85 }, "upvote")
     setFeedbackCount((prev) => ({ ...prev, upvotes: prev.upvotes + 1 }))
   }
 
   const handleDownvote = () => {
-    // Record a downvote for the current analysis
     recordFeedback("placeholder-image", { score: 85 }, "downvote")
     setFeedbackCount((prev) => ({ ...prev, downvotes: prev.downvotes + 1 }))
   }
@@ -212,20 +211,20 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
     if (!selectedAnalysis) return null
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center p-4">
-        <div className="bg-gray-900 rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
-          <div className="sticky top-0 bg-gray-900 p-4 border-b border-gray-800 flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Analysis Details</h2>
-            <Button variant="ghost" size="icon" onClick={() => setSelectedAnalysis(null)}>
-              <XCircle className="h-6 w-6" />
+      <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto shadow-xl">
+          <div className="sticky top-0 bg-white p-4 border-b flex justify-between items-center">
+            <h2 className="text-xl font-semibold text-gray-800">Analysis Details</h2>
+            <Button variant="ghost" size="icon" onClick={() => setSelectedAnalysis(null)} className="text-gray-500 hover:text-gray-800">
+              <X className="h-5 w-5" />
             </Button>
           </div>
 
           <div className="p-6 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <h3 className="text-lg font-medium mb-2">Image</h3>
-                <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-800">
+                <h3 className="text-lg font-medium mb-3 text-gray-700">Image</h3>
+                <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-100 shadow-sm">
                   <Image
                     src={selectedAnalysis.imageData || "/placeholder.svg"}
                     alt="Analysis image"
@@ -237,27 +236,27 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
 
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-lg font-medium mb-2">Information</h3>
-                  <div className="space-y-2">
+                  <h3 className="text-lg font-medium mb-3 text-gray-700">Information</h3>
+                  <div className="space-y-3 text-gray-600">
                     <div className="flex justify-between">
-                      <span className="text-gray-400">ID:</span>
+                      <span>ID:</span>
                       <span className="font-mono text-sm">{selectedAnalysis.id}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Type:</span>
+                      <span>Type:</span>
                       <span>{getTypeBadge(selectedAnalysis.analysisType)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Status:</span>
+                      <span>Status:</span>
                       <span>{getStatusBadge(selectedAnalysis.status)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-400">Timestamp:</span>
+                      <span>Timestamp:</span>
                       <span>{formatTimestamp(selectedAnalysis.timestamp)}</span>
                     </div>
                     {selectedAnalysis.metadata?.processingTimeMs && (
                       <div className="flex justify-between">
-                        <span className="text-gray-400">Processing Time:</span>
+                        <span>Processing Time:</span>
                         <span>{selectedAnalysis.metadata.processingTimeMs}ms</span>
                       </div>
                     )}
@@ -266,9 +265,9 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
 
                 {selectedAnalysis.error && (
                   <div>
-                    <h3 className="text-lg font-medium mb-2 text-red-500">Error</h3>
-                    <div className="bg-red-900 bg-opacity-20 p-3 rounded-md border border-red-800">
-                      <p className="text-red-400">{selectedAnalysis.error}</p>
+                    <h3 className="text-lg font-medium mb-2 text-red-600">Error</h3>
+                    <div className="bg-red-50 p-3 rounded-md border border-red-200">
+                      <p className="text-red-600">{selectedAnalysis.error}</p>
                     </div>
                   </div>
                 )}
@@ -276,13 +275,13 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
             </div>
 
             <div>
-              <h3 className="text-lg font-medium mb-2">Result</h3>
-              <div className="bg-gray-800 p-4 rounded-lg overflow-x-auto">
-                <pre className="text-sm text-gray-300">{JSON.stringify(selectedAnalysis.result, null, 2)}</pre>
+              <h3 className="text-lg font-medium mb-3 text-gray-700">Result</h3>
+              <div className="bg-gray-50 p-4 rounded-lg overflow-x-auto shadow-inner">
+                <pre className="text-sm text-gray-700">{JSON.stringify(selectedAnalysis.result, null, 2)}</pre>
               </div>
             </div>
 
-            <div className="flex justify-end space-x-2">
+            <div className="flex justify-end space-x-3 pt-2">
               <Button variant="outline" onClick={() => setSelectedAnalysis(null)}>
                 Close
               </Button>
@@ -319,7 +318,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
         {analyses.map((analysis) => (
           <Card
             key={analysis.id}
-            className="bg-white bg-opacity-5 border-0 overflow-hidden hover:bg-opacity-10 transition-all cursor-pointer"
+            className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => setSelectedAnalysis(analysis)}
           >
             <div className="aspect-video relative">
@@ -336,19 +335,19 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
             </div>
             <CardContent className="p-4">
               <div className="flex justify-between items-center mb-2">
-                <span className="font-mono text-xs truncate text-gray-400">{analysis.id.substring(0, 12)}...</span>
-                <span className="text-xs text-gray-400 flex items-center">
+                <span className="font-mono text-xs truncate text-gray-500">{analysis.id.substring(0, 12)}...</span>
+                <span className="text-xs text-gray-500 flex items-center">
                   <Clock className="w-3 h-3 mr-1" />
                   {new Date(analysis.timestamp).toLocaleDateString()}
                 </span>
               </div>
               {analysis.error ? (
-                <div className="text-red-400 text-sm truncate">
+                <div className="text-red-600 text-sm truncate">
                   <XCircle className="w-4 h-4 inline mr-1" />
                   {analysis.error}
                 </div>
               ) : (
-                <div className="text-sm truncate">
+                <div className="text-sm text-gray-700 truncate">
                   {analysis.analysisType === "outfit" && "Outfit Analysis"}
                   {analysis.analysisType === "detailed" && "Detailed Analysis"}
                   {analysis.analysisType === "occasion" && `Occasion: ${analysis.result?.occasion || "Unknown"}`}
@@ -377,33 +376,34 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead>
-            <tr className="border-b border-gray-800">
-              <th className="text-left p-3">ID</th>
-              <th className="text-left p-3">Type</th>
-              <th className="text-left p-3">Status</th>
-              <th className="text-left p-3">Timestamp</th>
-              <th className="text-left p-3">Processing Time</th>
-              <th className="text-right p-3">Actions</th>
+            <tr className="border-b text-gray-600">
+              <th className="text-left p-3 font-medium">ID</th>
+              <th className="text-left p-3 font-medium">Type</th>
+              <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium">Timestamp</th>
+              <th className="text-left p-3 font-medium">Processing Time</th>
+              <th className="text-right p-3 font-medium">Actions</th>
             </tr>
           </thead>
           <tbody>
             {analyses.map((analysis) => (
               <tr
                 key={analysis.id}
-                className="border-b border-gray-800 hover:bg-white hover:bg-opacity-5 cursor-pointer"
+                className="border-b hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => setSelectedAnalysis(analysis)}
               >
-                <td className="p-3 font-mono text-xs">{analysis.id.substring(0, 12)}...</td>
+                <td className="p-3 font-mono text-xs text-gray-600">{analysis.id.substring(0, 12)}...</td>
                 <td className="p-3">{getTypeBadge(analysis.analysisType)}</td>
                 <td className="p-3">{getStatusBadge(analysis.status)}</td>
-                <td className="p-3 text-sm">{formatTimestamp(analysis.timestamp)}</td>
-                <td className="p-3 text-sm">
+                <td className="p-3 text-sm text-gray-600">{formatTimestamp(analysis.timestamp)}</td>
+                <td className="p-3 text-sm text-gray-600">
                   {analysis.metadata?.processingTimeMs ? `${analysis.metadata.processingTimeMs}ms` : "N/A"}
                 </td>
                 <td className="p-3 text-right">
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="text-gray-500 hover:text-gray-700"
                     onClick={(e) => {
                       e.stopPropagation()
                       handleDeleteAnalysis(analysis.id)
@@ -421,19 +421,19 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto py-8">
+    <div className="min-h-screen bg-gray-50 text-gray-800">
+      <div className="container mx-auto py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <Button
               variant="ghost"
               size="icon"
               onClick={navigateBack}
-              className="mr-4 text-white hover:bg-white hover:bg-opacity-10"
+              className="mr-4 text-gray-600 hover:bg-gray-100"
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </Button>
-            <h1 className="text-3xl font-bold">Machine Learning Dashboard</h1>
+            <h1 className="text-2xl font-bold text-gray-800">Machine Learning Dashboard</h1>
           </div>
 
           <div className="flex space-x-2">
@@ -442,7 +442,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               size="sm"
               onClick={refreshData}
               disabled={isLoading}
-              className="border-white text-white hover:bg-white hover:bg-opacity-10"
+              className="text-blue-600 border-blue-200 hover:bg-blue-50"
             >
               <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? "animate-spin" : ""}`} />
               Refresh
@@ -452,6 +452,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               size="sm"
               onClick={handleClearAllAnalyses}
               disabled={isLoading || analyses.length === 0}
+              className="bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
             >
               <Trash2 className="w-4 h-4 mr-2" />
               Clear All
@@ -460,42 +461,42 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
         </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3 bg-white bg-opacity-10">
-            <TabsTrigger value="overview" className="data-[state=active]:bg-white data-[state=active]:text-black">
+          <TabsList className="bg-white shadow-sm rounded-md">
+            <TabsTrigger value="overview" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               Overview
             </TabsTrigger>
-            <TabsTrigger value="analyses" className="data-[state=active]:bg-white data-[state=active]:text-black">
+            <TabsTrigger value="analyses" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               Analysis Results
             </TabsTrigger>
-            <TabsTrigger value="feedback" className="data-[state=active]:bg-white data-[state=active]:text-black">
+            <TabsTrigger value="feedback" className="data-[state=active]:bg-blue-50 data-[state=active]:text-blue-700">
               User Feedback
             </TabsTrigger>
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="bg-white bg-opacity-5 border-0 text-white col-span-1">
-                <CardHeader>
-                  <CardTitle>Analysis Summary</CardTitle>
-                  <CardDescription className="text-gray-400">Overview of ML analysis operations</CardDescription>
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-800">Analysis Summary</CardTitle>
+                  <CardDescription>Overview of ML analysis operations</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-gray-700">
                       <span>Total Analyses:</span>
                       <span className="font-medium">{stats.totalAnalyses}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Successful:</span>
-                      <span className="font-medium text-green-500">{stats.successfulAnalyses}</span>
+                      <span className="font-medium text-emerald-600">{stats.successfulAnalyses}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Failed:</span>
-                      <span className="font-medium text-red-500">{stats.failedAnalyses}</span>
+                      <span className="font-medium text-red-600">{stats.failedAnalyses}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Processing:</span>
-                      <span className="font-medium text-yellow-500">{stats.processingAnalyses}</span>
+                      <span className="font-medium text-amber-600">{stats.processingAnalyses}</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Avg. Processing Time:</span>
@@ -505,53 +506,47 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                 </CardContent>
               </Card>
 
-              <Card className="bg-white bg-opacity-5 border-0 text-white col-span-1">
-                <CardHeader>
-                  <CardTitle>User Feedback</CardTitle>
-                  <CardDescription className="text-gray-400">Help improve the model with your feedback</CardDescription>
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-800">User Feedback</CardTitle>
+                  <CardDescription>Help improve the model with your feedback</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="space-y-4">
-                    <div className="flex justify-between">
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-gray-700">
                       <span>Upvotes:</span>
-                      <span className="font-medium text-green-500">{feedbackCount.upvotes}</span>
+                      <span className="font-medium text-emerald-600">{feedbackCount.upvotes}</span>
                     </div>
-                    <div className="flex justify-between">
+                    <div className="flex justify-between text-gray-700">
                       <span>Downvotes:</span>
-                      <span className="font-medium text-red-500">{feedbackCount.downvotes}</span>
+                      <span className="font-medium text-red-600">{feedbackCount.downvotes}</span>
                     </div>
 
                     <div className="flex justify-between mt-4">
                       <div className="space-x-2">
-                        <Button onClick={handleUpvote} className="bg-green-600 hover:bg-green-700 text-white">
+                        <Button onClick={handleUpvote} className="bg-emerald-500 hover:bg-emerald-600 text-white">
                           <CheckCircle2 className="w-4 h-4 mr-2" />
                           Upvote
                         </Button>
-                        <Button onClick={handleDownvote} className="bg-red-600 hover:bg-red-700 text-white">
+                        <Button onClick={handleDownvote} className="bg-red-500 hover:bg-red-600 text-white">
                           <XCircle className="w-4 h-4 mr-2" />
                           Downvote
                         </Button>
                       </div>
 
-                      <div>
-                        <Button
-                          onClick={handleClearFeedback}
-                          variant="outline"
-                          className="border-white text-white hover:bg-white hover:bg-opacity-10"
-                        >
-                          <Trash2 className="w-4 h-4 mr-2" />
-                          Clear
-                        </Button>
-                      </div>
+                      <Button onClick={handleClearFeedback} variant="outline" className="text-gray-600 border-gray-200">
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        Clear
+                      </Button>
                     </div>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card className="bg-white bg-opacity-5 border-0 text-white col-span-1">
-                <CardHeader>
-                  <CardTitle>Analysis Types</CardTitle>
-                  <CardDescription className="text-gray-400">Distribution by analysis type</CardDescription>
+              <Card className="shadow-sm">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-gray-800">Analysis Types</CardTitle>
+                  <CardDescription>Distribution by analysis type</CardDescription>
                 </CardHeader>
                 <CardContent className="h-48 flex items-center justify-center">
                   {stats.totalAnalyses > 0 ? (
@@ -572,9 +567,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                           ))}
                         </Pie>
                         <Tooltip
-                          contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
-                          itemStyle={{ color: "white" }}
-                          labelStyle={{ color: "white" }}
+                          contentStyle={{ backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
                         />
                       </PieChart>
                     </ResponsiveContainer>
@@ -585,22 +578,20 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               </Card>
             </div>
 
-            <Card className="bg-white bg-opacity-5 border-0 text-white">
-              <CardHeader>
-                <CardTitle>Analysis Status</CardTitle>
-                <CardDescription className="text-gray-400">Distribution by status</CardDescription>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-gray-800">Analysis Status</CardTitle>
+                <CardDescription>Distribution by status</CardDescription>
               </CardHeader>
               <CardContent className="h-60">
                 {stats.totalAnalyses > 0 ? (
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={prepareStatusData()}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                      <XAxis dataKey="name" stroke="rgba(255,255,255,0.7)" />
-                      <YAxis stroke="rgba(255,255,255,0.7)" />
+                      <CartesianGrid strokeDasharray="3 3" stroke="rgba(0,0,0,0.05)" />
+                      <XAxis dataKey="name" />
+                      <YAxis />
                       <Tooltip
-                        contentStyle={{ backgroundColor: "rgba(0,0,0,0.8)", border: "none", borderRadius: "8px" }}
-                        itemStyle={{ color: "white" }}
-                        labelStyle={{ color: "white" }}
+                        contentStyle={{ backgroundColor: "white", borderRadius: "8px", boxShadow: "0 2px 10px rgba(0,0,0,0.1)" }}
                       />
                       <Bar dataKey="value" fill="#8884d8">
                         {prepareStatusData().map((entry, index) => (
@@ -617,30 +608,30 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
           </TabsContent>
 
           <TabsContent value="analyses" className="space-y-4">
-            <Card className="bg-white bg-opacity-5 border-0 text-white">
-              <CardHeader>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-3">
                 <div className="flex justify-between items-center">
-                  <CardTitle>Analysis Results</CardTitle>
-                  <div className="flex space-x-2">
+                  <CardTitle className="text-gray-800">Analysis Results</CardTitle>
+                  <div className="flex space-x-1 bg-gray-100 rounded-md p-1">
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setViewMode("grid")}
-                      className={viewMode === "grid" ? "bg-white bg-opacity-20" : ""}
+                      className={viewMode === "grid" ? "bg-white shadow-sm" : "text-gray-600"}
                     >
-                      <Grid className="w-5 h-5" />
+                      <Grid className="w-4 h-4" />
                     </Button>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => setViewMode("list")}
-                      className={viewMode === "list" ? "bg-white bg-opacity-20" : ""}
+                      className={viewMode === "list" ? "bg-white shadow-sm" : "text-gray-600"}
                     >
-                      <List className="w-5 h-5" />
+                      <List className="w-4 h-4" />
                     </Button>
                   </div>
                 </div>
-                <CardDescription className="text-gray-400">{analyses.length} analysis results found</CardDescription>
+                <CardDescription>{analyses.length} analysis results found</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="mb-4 flex flex-col sm:flex-row gap-4">
@@ -649,7 +640,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
                       <Input
                         placeholder="Search analyses..."
-                        className="pl-10 bg-white bg-opacity-5 border-gray-700"
+                        className="pl-10 border-gray-200"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                       />
@@ -661,7 +652,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       value={filters.analysisType || "all"}
                       onValueChange={(value) => handleFilterChange("analysisType", value === "all" ? undefined : value)}
                     >
-                      <SelectTrigger className="w-[140px] bg-white bg-opacity-5 border-gray-700">
+                      <SelectTrigger className="w-[140px] border-gray-200">
                         <SelectValue placeholder="Type" />
                       </SelectTrigger>
                       <SelectContent>
@@ -676,7 +667,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       value={filters.status || "all"}
                       onValueChange={(value) => handleFilterChange("status", value === "all" ? undefined : value)}
                     >
-                      <SelectTrigger className="w-[140px] bg-white bg-opacity-5 border-gray-700">
+                      <SelectTrigger className="w-[140px] border-gray-200">
                         <SelectValue placeholder="Status" />
                       </SelectTrigger>
                       <SelectContent>
@@ -692,12 +683,18 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       size="icon"
                       onClick={applyFilters}
                       disabled={isLoading}
-                      className="border-white text-white hover:bg-white hover:bg-opacity-10"
+                      className="border-gray-200 text-gray-700 hover:bg-gray-100"
                     >
                       <Filter className="w-4 h-4" />
                     </Button>
 
-                    <Button variant="ghost" size="icon" onClick={resetFilters} disabled={isLoading}>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      onClick={resetFilters} 
+                      disabled={isLoading}
+                      className="text-gray-500"
+                    >
                       <RefreshCw className="w-4 h-4" />
                     </Button>
                   </div>
@@ -709,28 +706,28 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
           </TabsContent>
 
           <TabsContent value="feedback" className="space-y-4">
-            <Card className="bg-white bg-opacity-5 border-0 text-white">
-              <CardHeader>
-                <CardTitle>User Feedback</CardTitle>
-                <CardDescription className="text-gray-400">Manage feedback for model improvement</CardDescription>
+            <Card className="shadow-sm">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-gray-800">User Feedback</CardTitle>
+                <CardDescription>Manage feedback for model improvement</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                      <h3 className="text-lg font-medium mb-4">Feedback Summary</h3>
-                      <div className="space-y-2">
+                    <div className="bg-gray-50 p-5 rounded-lg shadow-sm">
+                      <h3 className="text-lg font-medium mb-4 text-gray-800">Feedback Summary</h3>
+                      <div className="space-y-3 text-gray-700">
                         <div className="flex justify-between">
                           <span>Total Feedback:</span>
                           <span>{feedbackCount.upvotes + feedbackCount.downvotes}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Upvotes:</span>
-                          <span className="text-green-500">{feedbackCount.upvotes}</span>
+                          <span className="text-emerald-600">{feedbackCount.upvotes}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Downvotes:</span>
-                          <span className="text-red-500">{feedbackCount.downvotes}</span>
+                          <span className="text-red-600">{feedbackCount.downvotes}</span>
                         </div>
                         <div className="flex justify-between">
                           <span>Satisfaction Rate:</span>
@@ -743,18 +740,18 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       </div>
                     </div>
 
-                    <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                      <h3 className="text-lg font-medium mb-4">Provide Feedback</h3>
-                      <p className="text-gray-400 mb-4">
+                    <div className="bg-gray-50 p-5 rounded-lg shadow-sm">
+                      <h3 className="text-lg font-medium mb-4 text-gray-800">Provide Feedback</h3>
+                      <p className="text-gray-600 mb-4">
                         Your feedback helps us improve our machine learning models. Please rate your experience with the
                         analysis results.
                       </p>
                       <div className="flex space-x-4">
-                        <Button onClick={handleUpvote} className="flex-1 bg-green-600 hover:bg-green-700">
+                        <Button onClick={handleUpvote} className="flex-1 bg-emerald-500 hover:bg-emerald-600">
                           <CheckCircle2 className="w-4 h-4 mr-2" />
                           Upvote
                         </Button>
-                        <Button onClick={handleDownvote} className="flex-1 bg-red-600 hover:bg-red-700">
+                        <Button onClick={handleDownvote} className="flex-1 bg-red-500 hover:bg-red-600">
                           <XCircle className="w-4 h-4 mr-2" />
                           Downvote
                         </Button>
@@ -762,21 +759,21 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                     </div>
                   </div>
 
-                  <div className="bg-white bg-opacity-5 p-4 rounded-lg">
-                    <h3 className="text-lg font-medium mb-4">Feedback Management</h3>
-                    <p className="text-gray-400 mb-4">
+                  <div className="bg-gray-50 p-5 rounded-lg shadow-sm">
+                    <h3 className="text-lg font-medium mb-4 text-gray-800">Feedback Management</h3>
+                    <p className="text-gray-600 mb-4">
                       Manage the collected feedback data for model training and improvement.
                     </p>
                     <div className="flex space-x-4">
                       <Button
                         onClick={handleClearFeedback}
                         variant="outline"
-                        className="border-white text-white hover:bg-white hover:bg-opacity-10"
+                        className="border-gray-200 text-gray-800 hover:bg-gray-100"
                       >
                         <Trash2 className="w-4 h-4 mr-2" />
                         Clear Feedback
                       </Button>
-                      <Button className="bg-blue-600 hover:bg-blue-700">
+                      <Button className="bg-blue-500 hover:bg-blue-600 text-white">
                         <Download className="w-4 h-4 mr-2" />
                         Export Feedback
                       </Button>

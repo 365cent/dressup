@@ -67,27 +67,43 @@ export async function analyzeOutfit(imageData: string): Promise<{
   try {
     // Prepare the prompt for the vision model
     const prompt = `
-      Analyze this outfit image in detail. Provide a structured JSON response with the following:
+      Analyze this outfit image in detail. Provide a structured JSON response with the following fields exactly as specified:
       
-      1. Clothing categories present in the image with confidence scores (0-1):
-         - top, bottom, dress, outerwear, footwear, accessory, headwear
+      {
+        "categories": {
+          "top": (number between 0-1),
+          "bottom": (number between 0-1),
+          "dress": (number between 0-1),
+          "outerwear": (number between 0-1),
+          "footwear": (number between 0-1),
+          "accessory": (number between 0-1),
+          "headwear": (number between 0-1)
+        },
+        
+        "styleAttributes": {
+          "casual": (number between 0-1),
+          "formal": (number between 0-1),
+          "business": (number between 0-1),
+          "sporty": (number between 0-1),
+          "vintage": (number between 0-1),
+          "trendy": (number between 0-1),
+          "elegant": (number between 0-1),
+          "bohemian": (number between 0-1)
+        },
+        
+        "colorAnalysis": {
+          "dominant": (dominant color as hex code),
+          "palette": [array of 4 main colors as hex codes],
+          "contrast": (number between 0-1),
+          "harmony": (number between 0-1)
+        },
+        
+        "comfort": (score between 0-100),
+        "fitConfidence": (score between 0-100),
+        "colorHarmony": (score between 0-100)
+      }
       
-      2. Style attributes with confidence scores (0-1):
-         - casual, formal, business, sporty, vintage, trendy, elegant, bohemian
-      
-      3. Color analysis:
-         - dominant: The dominant color in hex code
-         - palette: Array of 4 main colors in hex codes
-         - contrast: A score from 0-1 indicating color contrast
-         - harmony: A score from 0-1 indicating color harmony
-      
-      4. Comfort score (0-100): How comfortable the outfit appears to be
-      
-      5. Fit confidence score (0-100): How well the clothes fit the person
-      
-      6. Color harmony score (0-100): How well the colors work together
-      
-      Return ONLY the JSON object with no additional text.
+      Use EXACTLY these field names in camelCase format. Return ONLY the JSON object with no additional text.
     `
 
     // Make the API request to Grok-2-Vision
@@ -407,17 +423,17 @@ export async function getStyleSuggestions(imageData: string, occasion: string): 
           // Extract suggestions using regex as a last resort
           const suggestionMatches = content.match(/["'](.+?)["']/g)
           if (suggestionMatches) {
-            suggestions = suggestionMatches.map((m) => m.replace(/^["']|["']$/g, ""))
+            suggestions = suggestionMatches.map((m: string) => m.replace(/^["']|["']$/g, ""))
           } else {
             throw new Error("Failed to parse suggestions")
           }
         }
       } else {
         // If we can't parse JSON, try to extract bullet points or numbered lists
-        const lines = content.split("\n").filter((line) => line.trim().match(/^[-*•]|^\d+\./) && line.length > 10)
+        const lines = content.split("\n").filter((line: string) => line.trim().match(/^[-*•]|^\d+\./) && line.length > 10)
 
         if (lines.length > 0) {
-          suggestions = lines.map((line) => line.replace(/^[-*•]|^\d+\.\s*/, "").trim())
+          suggestions = lines.map((line: string) => line.replace(/^[-*•]|^\d+\.\s*/, "").trim())
         } else {
           throw new Error("No suggestions found in response")
         }

@@ -20,7 +20,7 @@ interface ScoreData {
 
 export default function CameraCapture({ onCapture }: CameraCaptureProps) {
   const [isCapturing, setIsCapturing] = useState(true)
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("environment")
+  const [facingMode, setFacingMode] = useState<"user" | "environment">("user")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
   const [currentImageData, setCurrentImageData] = useState<string | null>(null)
   const [isTabVisible, setIsTabVisible] = useState(true)
