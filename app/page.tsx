@@ -5,9 +5,13 @@ import CameraCapture from "@/components/CameraCapture"
 import ScenarioPrompt from "@/components/ScenarioPrompt"
 import ClothingScore from "@/components/ClothingScore"
 import Wardrobe from "@/components/Wardrobe"
-import { analyzeOutfit, matchOutfitToOccasion } from "@/lib/ml-service"
+// Import client-side versions of analysis functions
+import { analyzeOutfit, matchOutfitToOccasion } from "@/lib/client-data-service"
 import { initVisibilityTracking } from "@/lib/visibility-utils"
+// Import client-side version of init
+import { initializeDataStorage } from "@/lib/client-data-service"
 
+// Keep interfaces here or move to a types file
 interface OutfitScores {
   comfort: number
   fitConfidence: number
@@ -60,11 +64,13 @@ interface WardrobeItem {
   details: PersonData
 }
 
-export default function Home() {
+export default function AppClient() {
   const [currentStep, setCurrentStep] = useState<"capture" | "prompt" | "score" | "wardrobe">("capture")
   const [capturedOutfits, setCapturedOutfits] = useState<CapturedOutfit[]>([])
   const [scenario, setScenario] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
+  const [isInitialized, setIsInitialized] = useState(false)
+  const [initError, setInitError] = useState<string | null>(null)
 
   // Store the analysis results so we can reuse them when adding to the wardrobe
   const [analyzedDetails, setAnalyzedDetails] = useState<PersonData | null>(null)
@@ -72,10 +78,55 @@ export default function Home() {
 
   const [wardrobe, setWardrobe] = useState<WardrobeItem[]>([])
 
-  // Initialize visibility tracking
+  // Initialize data directories and visibility tracking
   useEffect(() => {
-    initVisibilityTracking()
+    const initialize = async () => {
+      try {
+        // Use client-side initialization
+        await initializeDataStorage()
+        console.log("Data directories initialized successfully")
+        setIsInitialized(true)
+      } catch (error) {
+        console.error("Error initializing data directories:", error)
+        setInitError(error instanceof Error ? error.message : "Unknown initialization error")
+      }
+
+      // Initialize visibility tracking
+      initVisibilityTracking()
+    }
+
+    initialize()
   }, [])
+
+  // Show initialization error if any
+  if (initError) {
+    return (
+      <div className="h-screen w-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center p-6 bg-red-900 bg-opacity-50 rounded-lg">
+          <h1 className="text-2xl mb-4">Initialization Error</h1>
+          <p>{initError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-4 py-2 bg-white text-black rounded hover:bg-gray-200"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  // Wait for initialization to complete
+  if (!isInitialized) {
+    return (
+      <div className="h-screen w-screen bg-black text-white flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-t-transparent border-white rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-xl">Initializing app...</p>
+        </div>
+      </div>
+    )
+  }
 
   const handleCapture = async (imageData: string, scores: OutfitScores) => {
     setCapturedOutfits((prev) => [...prev, { image: imageData, scores }])
@@ -89,7 +140,7 @@ export default function Home() {
     const latestOutfit = capturedOutfits[capturedOutfits.length - 1]
 
     try {
-      // Use the ML model to analyze the outfit
+      // Use the client-side ML model function to analyze the outfit
       const analysisResult = await analyzeOutfit(latestOutfit.image)
 
       // Create a PersonData object from the analysis
@@ -109,7 +160,7 @@ export default function Home() {
                 ? "fair"
                 : "poor",
         wearing: Object.entries(analysisResult.categories)
-          .filter(([_, confidence]) => confidence > 0.5)
+          .filter(([_, confidence]) => typeof confidence === "number" && confidence > 0.5)
           .map(([category, confidence]) => ({
             item: category,
             category: category,
@@ -137,7 +188,7 @@ export default function Home() {
           })),
       }
 
-      // Calculate occasion score using the ML model
+      // Calculate occasion score using the client-side ML model function
       const occScore = await matchOutfitToOccasion(latestOutfit.image, userScenario)
 
       // Store the results of analyses in state
@@ -194,22 +245,26 @@ export default function Home() {
 
   const resetToCamera = () => {
     setCurrentStep("capture")
+    // Reset scenario and analysis results for a clean start
+    setScenario("")
+    setAnalyzedDetails(null)
+    setAnalyzedScore(null)
   }
 
   return (
     <main className="h-screen w-screen bg-black text-white overflow-hidden">
       {currentStep === "capture" && <CameraCapture onCapture={handleCapture} />}
       {currentStep === "prompt" && <ScenarioPrompt onSubmit={handleScenarioSubmit} isLoading={isLoading} />}
-      {currentStep === "score" && analyzedScore && (
+      {currentStep === "score" && analyzedScore !== null && ( // Check analyzedScore is not null
         <ClothingScore
-          score={analyzedScore ?? 0}
+          score={analyzedScore} // Pass the non-null score
           scenario={scenario}
           onAddToWardrobe={handleAddToWardrobe}
           onRetake={resetToCamera}
         />
       )}
-      {currentStep === "wardrobe" && (
-        <Wardrobe items={wardrobe} scenario={scenario} score={analyzedScore ?? 0} onBack={resetToCamera} />
+      {currentStep === "wardrobe" && analyzedScore !== null && ( // Check analyzedScore is not null
+        <Wardrobe items={wardrobe} scenario={scenario} score={analyzedScore} onBack={resetToCamera} />
       )}
     </main>
   )

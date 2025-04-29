@@ -2,9 +2,8 @@
 
 import { useState, useEffect } from "react"
 import Image from "next/image"
-import { X, ChevronRight, ChevronLeft, User, Shirt, ShoppingBag, Watch, Lightbulb, Search } from "lucide-react"
+import { X, ChevronRight, ChevronLeft, User, Shirt, ShoppingBag, Watch, Lightbulb } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { getStyleSuggestions } from "@/lib/ml-service"
 import { useRouter } from "next/navigation"
 
 interface WearingItem {
@@ -79,15 +78,40 @@ export default function WardrobeItemDetail({
     { name: "Color Harmony", value: Math.round(score * 0.98) },
   ]
 
-  // Load AI suggestions when component mounts
+  // Load AI suggestions using API route when component mounts
   useEffect(() => {
     const loadSuggestions = async () => {
       setLoadingSuggestions(true)
       try {
-        const result = await getStyleSuggestions(image, scenario)
-        setSuggestions(result)
+        const response = await fetch('/api/style-suggestions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ imageData: image, occasion: scenario }),
+        });
+
+        const data = await response.json();
+        
+        if (!response.ok) {
+          // Use fallback suggestions from API if available
+          if (data.fallbackSuggestions) {
+            setSuggestions(data.fallbackSuggestions);
+          } else {
+            throw new Error(data.error || 'Failed to get style suggestions');
+          }
+        } else {
+          setSuggestions(data.suggestions);
+        }
       } catch (error) {
-        console.error("Error loading suggestions:", error)
+        console.error("Error loading suggestions:", error);
+        // Fallback suggestions if API fails completely
+        setSuggestions([
+          "Consider adding accessories to enhance your outfit",
+          "Try layering for more visual interest",
+          "Ensure your colors complement each other well",
+          "Pay attention to fit - it's key to looking polished",
+        ]);
       } finally {
         setLoadingSuggestions(false)
       }
@@ -127,17 +151,58 @@ export default function WardrobeItemDetail({
     return "Poor Match"
   }
 
-  const handleViewDetailedAnalysis = () => {
-    if (onViewDetailedAnalysis) {
-      onViewDetailedAnalysis(image)
-    } else {
-      // Store the image in sessionStorage for the detailed analysis page
-      sessionStorage.setItem("analysisImage", image)
-      router.push("/detailed-analysis")
-    }
-  }
+  // Improved person information display
+  const renderPersonInfo = () => {
+    // Filter out properties we want to display in a specific order
+    const orderedProps = ['type', 'gender', 'age', 'skin', 'pose', 'expression', 'fit'];
+    
+    // Filter out 'wearing' and any undefined/null values
+    const filteredEntries = Object.entries(personData)
+      .filter(([key, value]) => key !== 'wearing' && value !== undefined && value !== null);
+    
+    // Sort entries based on the ordered properties
+    const sortedEntries = filteredEntries.sort(([keyA], [keyB]) => {
+      const indexA = orderedProps.indexOf(keyA);
+      const indexB = orderedProps.indexOf(keyB);
+      
+      // If both keys are in orderedProps, sort by their index
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+      
+      // If only keyA is in orderedProps, it comes first
+      if (indexA !== -1) return -1;
+      
+      // If only keyB is in orderedProps, it comes first
+      if (indexB !== -1) return 1;
+      
+      // If neither key is in orderedProps, maintain their original order
+      return 0;
+    });
+    
+    return (
+      <div className="grid grid-cols-2 gap-3 bg-white bg-opacity-5 p-4 rounded-xl">
+        {sortedEntries.map(([key, value]) => (
+          <div key={key} className="flex flex-col">
+            <span className="text-xs text-gray-400 capitalize">{key.replace(/_/g, " ")}</span>
+            <span className="text-sm capitalize">{value as string}</span>
+          </div>
+        ))}
+      </div>
+    );
+  };
 
+  // Improved wearing items display
   const renderWearingItems = () => {
+    // Check if wearing array exists and has items
+    if (!personData.wearing || !Array.isArray(personData.wearing) || personData.wearing.length === 0) {
+      return (
+        <div className="p-4 bg-white bg-opacity-5 rounded-xl text-center text-gray-400">
+          No clothing items detected
+        </div>
+      );
+    }
+
     return personData.wearing.map((item, index) => (
       <div key={index} className="mb-3">
         <button
@@ -164,17 +229,18 @@ export default function WardrobeItemDetail({
             >
               <div className="p-4 bg-white bg-opacity-5 mt-1 rounded-xl">
                 <div className="grid grid-cols-2 gap-3">
-                  {Object.entries(item).map(([key, value]) => {
-                    if (key === "item" || key === "category") return null
-                    return (
+                  {Object.entries(item)
+                    .filter(([key]) => key !== "item" && key !== "category")
+                    .map(([key, value]) => (
                       <div key={key} className="flex flex-col">
-                        <span className="text-xs text-gray-400 capitalize">{key.replace("_", " ")}</span>
+                        <span className="text-xs text-gray-400 capitalize">{key.replace(/_/g, " ")}</span>
                         <span className="text-sm capitalize">
-                          {typeof value === "boolean" ? (value ? "Yes" : "No") : value.toString()}
+                          {typeof value === "boolean" 
+                            ? (value ? "Yes" : "No") 
+                            : typeof value === "undefined" ? "-" : String(value)}
                         </span>
                       </div>
-                    )
-                  })}
+                    ))}
                 </div>
               </div>
             </motion.div>
@@ -219,6 +285,14 @@ export default function WardrobeItemDetail({
       )
     }
 
+    if (!suggestions || suggestions.length === 0) {
+      return (
+        <div className="p-4 bg-white bg-opacity-5 rounded-xl text-center text-gray-400">
+          No style suggestions available
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-2">
         {suggestions.map((suggestion, index) => (
@@ -235,7 +309,13 @@ export default function WardrobeItemDetail({
     <div className="relative h-full w-full bg-black text-white overflow-hidden">
       {/* Full screen image */}
       <div className="absolute inset-0 z-0">
-        <Image src={image || "/placeholder.svg"} alt="Outfit detail" fill className="object-contain" />
+        <Image 
+          src={image || "/placeholder.svg"} 
+          alt={`Outfit for ${scenario}`}
+          fill 
+          className="object-contain" 
+          priority
+        />
       </div>
 
       {/* Score badge */}
@@ -249,15 +329,6 @@ export default function WardrobeItemDetail({
         className="absolute top-6 right-6 z-20 bg-black bg-opacity-50 backdrop-blur-sm rounded-full p-2 hover:bg-opacity-70 transition-all duration-300"
       >
         <X className="w-6 h-6" />
-      </button>
-
-      {/* Detailed Analysis button */}
-      <button
-        onClick={handleViewDetailedAnalysis}
-        className="absolute top-6 right-20 z-20 bg-black bg-opacity-50 backdrop-blur-sm rounded-full p-2 hover:bg-opacity-70 transition-all duration-300"
-        title="View Detailed Analysis"
-      >
-        <Search className="w-6 h-6" />
       </button>
 
       {/* Sidebar toggle button */}
@@ -276,7 +347,7 @@ export default function WardrobeItemDetail({
             animate={{ x: 0 }}
             exit={{ x: "100%" }}
             transition={{ type: "spring", damping: 25, stiffness: 300 }}
-            className="absolute top-0 right-0 z-10 h-full w-2/3 bg-black bg-opacity-80 backdrop-blur-md rounded-l-3xl overflow-hidden"
+            className="absolute top-0 right-0 z-10 h-full w-full md:w-2/3 lg:w-1/2 bg-black bg-opacity-80 backdrop-blur-md rounded-l-3xl overflow-hidden"
           >
             <div className="h-full flex flex-col p-6 overflow-y-auto">
               <div className="flex justify-between items-center mb-8">
@@ -331,17 +402,7 @@ export default function WardrobeItemDetail({
                   <User className="w-5 h-5 mr-2" />
                   <h3 className="text-xl font-medium">Person</h3>
                 </div>
-                <div className="grid grid-cols-2 gap-3 bg-white bg-opacity-5 p-4 rounded-xl">
-                  {Object.entries(personData).map(([key, value]) => {
-                    if (key === "wearing") return null
-                    return (
-                      <div key={key} className="flex flex-col">
-                        <span className="text-xs text-gray-400 capitalize">{key}</span>
-                        <span className="text-sm capitalize">{value}</span>
-                      </div>
-                    )
-                  })}
-                </div>
+                {renderPersonInfo()}
               </div>
 
               {/* Wearing items */}

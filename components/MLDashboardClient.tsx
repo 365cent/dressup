@@ -25,11 +25,32 @@ import {
   Grid,
   X,
 } from "lucide-react"
-import { executeMCPOperation, type AnalysisResult, type AnalysisFilters, type AnalysisStats } from "@/lib/mcp-protocol"
-import { recordFeedback, getFeedbackData, clearFeedbackData } from "@/lib/ml-service"
+import { executeMCPOperation, type AnalysisResult as OriginalAnalysisResult, type AnalysisFilters, type AnalysisStats } from "@/lib/mcp-protocol"
+
+// Extend AnalysisResult to include optional imagePath property for local usage
+type AnalysisResult = OriginalAnalysisResult & {
+  imagePath?: string
+}
+// Removed ml-service imports for feedback
+// Removed client-data-service import for getFeedbackData
+import { initializeDataStorage } from "@/lib/client-data-service"
+
+// Define FeedbackDataItem type for local usage
+type FeedbackDataItem = {
+  feedback: "upvote" | "downvote" | null
+  analysisId?: string // Use analysisId instead of analysis object
+  imageId?: string
+  timestamp?: number
+}
 
 // Colors for charts - lighter palette
 const COLORS = ["#60a5fa", "#34d399", "#fbbf24", "#f87171", "#a78bfa", "#6ee7b7"]
+
+// Define chart data types
+interface ChartDataItem {
+  name: string;
+  value: number;
+}
 
 interface MLDashboardClientProps {
   initialAnalyses: AnalysisResult[]
@@ -44,6 +65,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
   const [isLoading, setIsLoading] = useState(false)
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [selectedAnalysis, setSelectedAnalysis] = useState<AnalysisResult | null>(null)
+  const [isInitialized, setIsInitialized] = useState(false)
 
   // Filters
   const [filters, setFilters] = useState<AnalysisFilters>({
@@ -54,13 +76,57 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
 
   const router = useRouter()
 
+  // Function to navigate back using Next.js router
+  const navigateBack = () => {
+    router.back();
+  }
+
+  // First, initialize the data storage
   useEffect(() => {
-    // Get feedback data on component mount
-    const data = getFeedbackData()
-    const upvotes = data.filter((item) => item.feedback === "upvote").length
-    const downvotes = data.filter((item) => item.feedback === "downvote").length
-    setFeedbackCount({ upvotes, downvotes })
-  }, [])
+    const initialize = async () => {
+      await initializeDataStorage();
+      setIsInitialized(true);
+    };
+    initialize();
+  }, []);
+
+  // Then, load feedback data once initialization is complete
+  useEffect(() => {
+    if (!isInitialized) return;
+
+    const loadFeedbackData = async () => {
+      try {
+        // Use executeMCPOperation to get feedback
+        const data: FeedbackDataItem[] = await executeMCPOperation({ type: "GET_FEEDBACK" });
+        const upvotes: number = data.filter((item) => item.feedback === "upvote").length;
+        const downvotes: number = data.filter((item) => item.feedback === "downvote").length;
+        setFeedbackCount({ upvotes, downvotes });
+
+        // Track which analyses have received feedback using analysisId
+        const feedbackMap: Record<string, "upvote" | "downvote" | null> = {};
+        data.forEach((item) => {
+          if (item.analysisId) {
+            feedbackMap[item.analysisId] = item.feedback;
+          }
+        });
+        setFeedbackGiven(feedbackMap);
+      } catch (error) {
+        console.error("Error loading feedback data via MCP:", error);
+        setFeedbackCount({ upvotes: 0, downvotes: 0 });
+      }
+    };
+
+    loadFeedbackData();
+  }, [isInitialized])
+
+  // Status message for operations
+  const [statusMessage, setStatusMessage] = useState<{text: string, type: 'success' | 'error' | 'info'} | null>(null);
+
+  // Show a status message with auto-dismiss
+  const showStatus = (text: string, type: 'success' | 'error' | 'info' = 'info') => {
+    setStatusMessage({ text, type });
+    setTimeout(() => setStatusMessage(null), 3000);
+  };
 
   // Refresh data from MCP
   const refreshData = async () => {
@@ -74,8 +140,10 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
 
       setAnalyses(newAnalyses)
       setStats(newStats)
+      showStatus("Data refreshed successfully", "success");
     } catch (error) {
       console.error("Error refreshing data:", error)
+      showStatus("Failed to refresh data", "error");
     } finally {
       setIsLoading(false)
     }
@@ -149,66 +217,243 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
     }
   }
 
-  const handleUpvote = () => {
-    recordFeedback("placeholder-image", { score: 85 }, "upvote")
-    setFeedbackCount((prev) => ({ ...prev, upvotes: prev.upvotes + 1 }))
-  }
+  // Add state to track which analyses have received feedback
+  const [feedbackGiven, setFeedbackGiven] = useState<Record<string, "upvote" | "downvote" | null>>({})
 
-  const handleDownvote = () => {
-    recordFeedback("placeholder-image", { score: 85 }, "downvote")
-    setFeedbackCount((prev) => ({ ...prev, downvotes: prev.downvotes + 1 }))
-  }
+  // Update the handleUpvote and handleDownvote functions to handle missing analysis parameter
+  // and implement toggle functionality with improved feedback
+  const handleUpvote = async (analysis?: AnalysisResult, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation()
+    }
 
-  const handleClearFeedback = () => {
-    clearFeedbackData()
-    setFeedbackCount({ upvotes: 0, downvotes: 0 })
-  }
+    // If no analysis is provided, we can't do anything
+    if (!analysis || !analysis.id || !analysis.imageId) {
+      console.warn("No analysis or required IDs provided for upvote")
+      showStatus("Error: Missing analysis details", "error");
+      return
+    }
 
-  const handleDeleteAnalysis = async (id: string) => {
-    if (confirm("Are you sure you want to delete this analysis?")) {
-      try {
-        await executeMCPOperation({ type: "DELETE_ANALYSIS", id })
-        refreshData()
-      } catch (error) {
-        console.error("Error deleting analysis:", error)
+    const analysisId = analysis.id;
+    const imageId = analysis.imageId;
+
+    try {
+      let operation: "SAVE_FEEDBACK" | "REMOVE_FEEDBACK";
+      let newFeedbackState: "upvote" | null = "upvote";
+
+      // If this analysis was already upvoted, remove the upvote
+      if (feedbackGiven[analysisId] === "upvote") {
+        operation = "REMOVE_FEEDBACK";
+        newFeedbackState = null;
+        showStatus("Feedback removed", "info");
       }
+      // If it was previously downvoted, change to upvote
+      else if (feedbackGiven[analysisId] === "downvote") {
+        operation = "SAVE_FEEDBACK";
+        showStatus("Feedback changed to upvote", "success");
+      }
+      // No previous feedback, just add upvote
+      else {
+        operation = "SAVE_FEEDBACK";
+        showStatus("Upvote recorded", "success");
+      }
+
+      // Execute the MCP operation
+      if (operation === "REMOVE_FEEDBACK") {
+        await executeMCPOperation({ type: "REMOVE_FEEDBACK", analysisId });
+      } else {
+        await executeMCPOperation({ type: "SAVE_FEEDBACK", imageId, analysisId, feedback: "upvote" });
+      }
+
+      // Optimistically update UI state
+      setFeedbackGiven(prev => {
+        const newState = { ...prev };
+        if (newFeedbackState === null) {
+          delete newState[analysisId];
+        } else {
+          newState[analysisId] = newFeedbackState;
+        }
+        return newState;
+      });
+      // Recalculate counts based on the new feedbackGiven state
+      const updatedFeedbackValues = Object.values(feedbackGiven);
+      setFeedbackCount({
+         upvotes: updatedFeedbackValues.filter(f => f === "upvote").length,
+         downvotes: updatedFeedbackValues.filter(f => f === "downvote").length
+      });
+
+
+    } catch (error) {
+      console.error("Error recording feedback via MCP:", error);
+      showStatus("Failed to record feedback", "error");
+      // TODO: Revert optimistic UI update on error?
     }
   }
+
+  const handleDownvote = async (analysis?: AnalysisResult, event?: React.MouseEvent) => {
+    if (event) {
+      event.stopPropagation()
+    }
+
+    // If no analysis is provided, we can't do anything
+    if (!analysis || !analysis.id || !analysis.imageId) {
+      console.warn("No analysis or required IDs provided for downvote")
+      showStatus("Error: Missing analysis details", "error");
+      return
+    }
+
+    const analysisId = analysis.id;
+    const imageId = analysis.imageId;
+
+    try {
+      let operation: "SAVE_FEEDBACK" | "REMOVE_FEEDBACK";
+      let newFeedbackState: "downvote" | null = "downvote";
+
+      // If this analysis was already downvoted, remove the downvote
+      if (feedbackGiven[analysisId] === "downvote") {
+        operation = "REMOVE_FEEDBACK";
+        newFeedbackState = null;
+        showStatus("Feedback removed", "info");
+      }
+      // If it was previously upvoted, change to downvote
+      else if (feedbackGiven[analysisId] === "upvote") {
+        operation = "SAVE_FEEDBACK";
+        showStatus("Feedback changed to downvote", "info");
+      }
+      // No previous feedback, just add downvote
+      else {
+        operation = "SAVE_FEEDBACK";
+        showStatus("Downvote recorded", "info");
+      }
+
+      // Execute the MCP operation
+      if (operation === "REMOVE_FEEDBACK") {
+        await executeMCPOperation({ type: "REMOVE_FEEDBACK", analysisId });
+      } else {
+        await executeMCPOperation({ type: "SAVE_FEEDBACK", imageId, analysisId, feedback: "downvote" });
+      }
+
+      // Optimistically update UI state
+      setFeedbackGiven(prev => {
+        const newState = { ...prev };
+        if (newFeedbackState === null) {
+          delete newState[analysisId];
+        } else {
+          newState[analysisId] = newFeedbackState;
+        }
+        return newState;
+      });
+       // Recalculate counts based on the new feedbackGiven state
+      const updatedFeedbackValues = Object.values(feedbackGiven);
+      setFeedbackCount({
+         upvotes: updatedFeedbackValues.filter(f => f === "upvote").length,
+         downvotes: updatedFeedbackValues.filter(f => f === "downvote").length
+      });
+
+    } catch (error) {
+      console.error("Error recording feedback via MCP:", error);
+      showStatus("Failed to record feedback", "error");
+      // TODO: Revert optimistic UI update on error?
+    }
+  }
+
+  const handleClearFeedback = async () => {
+    try {
+      // Use executeMCPOperation to clear feedback
+      await executeMCPOperation({ type: "CLEAR_FEEDBACK" });
+      setFeedbackCount({ upvotes: 0, downvotes: 0 })
+      setFeedbackGiven({})
+      showStatus("All feedback cleared successfully", "success");
+    } catch (error) {
+      console.error("Error clearing feedback via MCP:", error);
+      showStatus("Failed to clear feedback", "error");
+    }
+  }
+
+  const handleDeleteAnalysis = async (id: string, source: 'modal' | 'list' = 'list') => {
+    try {
+      await executeMCPOperation({ type: "DELETE_ANALYSIS", id });
+      
+      // Close the modal if deleted from there
+      if (source === 'modal') {
+        setSelectedAnalysis(null);
+      }
+      
+      // Refresh the analyses list
+      const newAnalyses = await executeMCPOperation({
+        type: "FETCH_ANALYSES",
+        filters,
+      });
+      setAnalyses(newAnalyses);
+      
+      // Update stats since we've changed the data
+      const newStats = await executeMCPOperation({ type: "GET_STATS" });
+      setStats(newStats);
+      
+      showStatus("Analysis deleted successfully", "success");
+    } catch (error) {
+      console.error("Error deleting analysis:", error);
+      showStatus("Failed to delete analysis", "error");
+    }
+  };
 
   const handleClearAllAnalyses = async () => {
     if (confirm("Are you sure you want to clear all analyses? This action cannot be undone.")) {
       try {
         await executeMCPOperation({ type: "CLEAR_ANALYSES" })
         refreshData()
+        showStatus("All analyses cleared successfully", "success");
       } catch (error) {
         console.error("Error clearing analyses:", error)
+        showStatus("Failed to clear analyses", "error");
       }
     }
   }
 
-  const navigateBack = () => {
-    router.back()
-  }
-
-  // Prepare data for charts
-  const prepareTypeData = () => {
+  // Prepare data for type chart
+  const prepareTypeData = (): ChartDataItem[] => {
+    if (!stats.byType) return [];
+    
     return Object.entries(stats.byType).map(([type, count]) => ({
       name: type,
-      value: count,
-    }))
+      value: count
+    }));
   }
-
-  const prepareStatusData = () => {
+  
+  // Prepare data for status chart
+  const prepareStatusData = (): ChartDataItem[] => {
     return [
-      { name: "Success", value: stats.successfulAnalyses },
-      { name: "Error", value: stats.failedAnalyses },
-      { name: "Processing", value: stats.processingAnalyses },
-    ]
+      { name: 'Success', value: stats.successfulAnalyses },
+      { name: 'Failed', value: stats.failedAnalyses },
+      { name: 'Processing', value: stats.processingAnalyses }
+    ];
   }
 
-  // Render analysis details
+  // Helper function to get the correct image source
+  const getImageSrc = (analysis: AnalysisResult): string | null => {
+    // Use the imageId to construct the URL to the image serving API route
+    if (analysis.imageId) {
+      return `/api/images/${analysis.imageId}`;
+    }
+    
+    // Fallback or alternative logic if needed (e.g., if imageData was stored differently)
+    // if (analysis.imageData && analysis.imageData.startsWith('data:')) {
+    //   return analysis.imageData;
+    // }
+
+    console.warn(`No imageId found for analysis ${analysis.id}`);
+    return null; // Return null if no imageId is available
+  }
+
+  // Render analysis details modal with improved delete confirmation
   const renderAnalysisDetails = () => {
     if (!selectedAnalysis) return null
+
+    const handleDelete = () => {
+      if (confirm(`Are you sure you want to delete this analysis (ID: ${selectedAnalysis.id.substring(0, 8)}...)?`)) {
+        handleDeleteAnalysis(selectedAnalysis.id, 'modal');
+      }
+    };
 
     return (
       <div className="fixed inset-0 bg-black bg-opacity-30 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
@@ -225,12 +470,19 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               <div>
                 <h3 className="text-lg font-medium mb-3 text-gray-700">Image</h3>
                 <div className="aspect-square relative rounded-lg overflow-hidden bg-gray-100 shadow-sm">
-                  <Image
-                    src={selectedAnalysis.imageData || "/placeholder.svg"}
-                    alt="Analysis image"
-                    fill
-                    className="object-contain"
-                  />
+                  {getImageSrc(selectedAnalysis) ? (
+                    <Image
+                      src={getImageSrc(selectedAnalysis) ?? "/placeholder.svg"} // Provide fallback
+                      alt="Analysis image"
+                      fill
+                      className="object-contain" // Use contain for the modal view
+                      unoptimized // Recommended
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center">
+                      <AlertCircle className="h-12 w-12 text-gray-300" />
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -287,13 +539,35 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               </Button>
               <Button
                 variant="destructive"
-                onClick={() => {
-                  handleDeleteAnalysis(selectedAnalysis.id)
-                  setSelectedAnalysis(null)
-                }}
+                onClick={handleDelete}
               >
-                Delete
+                Delete This Analysis
               </Button>
+            </div>
+
+            {/* Add feedback buttons */}
+            <div className="mt-3">
+              <h4 className="font-medium mb-2 text-gray-700">Feedback</h4>
+              <div className="flex space-x-2">
+                <Button
+                  onClick={() => handleUpvote(selectedAnalysis)}
+                  variant={feedbackGiven[selectedAnalysis.id] === "upvote" ? "default" : "outline"}
+                  className={feedbackGiven[selectedAnalysis.id] === "upvote" ? "bg-emerald-500 hover:bg-emerald-600" : ""}
+                  size="sm"
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Useful
+                </Button>
+                <Button
+                  onClick={() => handleDownvote(selectedAnalysis)}
+                  variant={feedbackGiven[selectedAnalysis.id] === "downvote" ? "default" : "outline"}
+                  className={feedbackGiven[selectedAnalysis.id] === "downvote" ? "bg-red-500 hover:bg-red-600" : ""}
+                  size="sm"
+                >
+                  <XCircle className="w-4 h-4 mr-2" />
+                  Not Useful
+                </Button>
+              </div>
             </div>
           </div>
         </div>
@@ -322,12 +596,21 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
             onClick={() => setSelectedAnalysis(analysis)}
           >
             <div className="aspect-video relative">
-              <Image
-                src={analysis.imageData || "/placeholder.svg"}
-                alt="Analysis image"
-                fill
-                className="object-cover"
-              />
+              {getImageSrc(analysis) ? (
+                <Image
+                  // Use unoptimized={true} if the image serving route doesn't handle optimization
+                  // or if you encounter issues with Next.js image optimization.
+                  src={getImageSrc(analysis) ?? "/placeholder.svg"} // Provide fallback
+                  alt="Analysis image"
+                  fill
+                  className="object-cover"
+                  unoptimized // Recommended when using external/dynamic sources not handled by Next/Image loader
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-100">
+                  <AlertCircle className="h-8 w-8 text-gray-300" />
+                </div>
+              )}
               <div className="absolute top-2 right-2 flex space-x-2">
                 {getTypeBadge(analysis.analysisType)}
                 {getStatusBadge(analysis.status)}
@@ -353,6 +636,26 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                   {analysis.analysisType === "occasion" && `Occasion: ${analysis.result?.occasion || "Unknown"}`}
                 </div>
               )}
+
+              {/* Add feedback buttons */}
+              <div className="mt-2 flex justify-end space-x-2">
+                <Button
+                  variant={feedbackGiven[analysis.id] === "upvote" ? "default" : "outline"}
+                  size="sm"
+                  className={feedbackGiven[analysis.id] === "upvote" ? "bg-emerald-500" : "border-gray-200 text-gray-600 hover:bg-gray-50"}
+                  onClick={(e) => handleUpvote(analysis, e)}
+                >
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                </Button>
+                <Button
+                  variant={feedbackGiven[analysis.id] === "downvote" ? "default" : "outline"}
+                  size="sm"
+                  className={feedbackGiven[analysis.id] === "downvote" ? "bg-red-500" : "border-gray-200 text-gray-600 hover:bg-gray-50"}
+                  onClick={(e) => handleDownvote(analysis, e)}
+                >
+                  <XCircle className="w-3.5 h-3.5" />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ))}
@@ -420,8 +723,27 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
     )
   }
 
+  // Add status message display
+  const renderStatusMessage = () => {
+    if (!statusMessage) return null;
+    
+    const bgColor = 
+      statusMessage.type === 'success' ? 'bg-green-100 border-green-300 text-green-800' :
+      statusMessage.type === 'error' ? 'bg-red-100 border-red-300 text-red-800' :
+      'bg-blue-100 border-blue-300 text-blue-800';
+    
+    return (
+      <div className={`fixed bottom-4 right-4 px-4 py-2 rounded-md border ${bgColor} shadow-md z-50 animate-fade-in-up`}>
+        {statusMessage.text}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-800">
+      {/* Status message toast */}
+      {renderStatusMessage()}
+      
       <div className="container mx-auto py-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
@@ -509,7 +831,7 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
               <Card className="shadow-sm">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-gray-800">User Feedback</CardTitle>
-                  <CardDescription>Help improve the model with your feedback</CardDescription>
+                  <CardDescription>Feedback summary from analysis results</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
@@ -521,22 +843,19 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                       <span>Downvotes:</span>
                       <span className="font-medium text-red-600">{feedbackCount.downvotes}</span>
                     </div>
+                    <div className="flex justify-between text-gray-700">
+                      <span>Satisfaction Rate:</span>
+                      <span className="font-medium">
+                        {feedbackCount.upvotes + feedbackCount.downvotes > 0
+                          ? `${Math.round((feedbackCount.upvotes / (feedbackCount.upvotes + feedbackCount.downvotes)) * 100)}%`
+                          : "N/A"}
+                      </span>
+                    </div>
 
-                    <div className="flex justify-between mt-4">
-                      <div className="space-x-2">
-                        <Button onClick={handleUpvote} className="bg-emerald-500 hover:bg-emerald-600 text-white">
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Upvote
-                        </Button>
-                        <Button onClick={handleDownvote} className="bg-red-500 hover:bg-red-600 text-white">
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Downvote
-                        </Button>
-                      </div>
-
-                      <Button onClick={handleClearFeedback} variant="outline" className="text-gray-600 border-gray-200">
+                    <div className="pt-2">
+                      <Button onClick={handleClearFeedback} variant="outline" className="w-full text-gray-600 border-gray-200">
                         <Trash2 className="w-4 h-4 mr-2" />
-                        Clear
+                        Clear All Feedback
                       </Button>
                     </div>
                   </div>
@@ -743,19 +1062,35 @@ export default function MLDashboardClient({ initialAnalyses, initialStats }: MLD
                     <div className="bg-gray-50 p-5 rounded-lg shadow-sm">
                       <h3 className="text-lg font-medium mb-4 text-gray-800">Provide Feedback</h3>
                       <p className="text-gray-600 mb-4">
-                        Your feedback helps us improve our machine learning models. Please rate your experience with the
-                        analysis results.
+                        Your feedback helps us improve our machine learning models. Please select an analysis result 
+                        first, then provide feedback on that specific result.
                       </p>
-                      <div className="flex space-x-4">
-                        <Button onClick={handleUpvote} className="flex-1 bg-emerald-500 hover:bg-emerald-600">
-                          <CheckCircle2 className="w-4 h-4 mr-2" />
-                          Upvote
-                        </Button>
-                        <Button onClick={handleDownvote} className="flex-1 bg-red-500 hover:bg-red-600">
-                          <XCircle className="w-4 h-4 mr-2" />
-                          Downvote
-                        </Button>
-                      </div>
+                      
+                      {selectedAnalysis ? (
+                        <div className="flex space-x-4">
+                          <Button 
+                            onClick={() => handleUpvote(selectedAnalysis)} 
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-600"
+                          >
+                            <CheckCircle2 className="w-4 h-4 mr-2" />
+                            Upvote Selected
+                          </Button>
+                          <Button 
+                            onClick={() => handleDownvote(selectedAnalysis)} 
+                            className="flex-1 bg-red-500 hover:bg-red-600"
+                          >
+                            <XCircle className="w-4 h-4 mr-2" />
+                            Downvote Selected
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-blue-50 text-blue-700 rounded border border-blue-200">
+                          <p className="flex items-center">
+                            <AlertCircle className="w-5 h-5 mr-2" />
+                            Please select an analysis from the "Analysis Results" tab to provide feedback
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 

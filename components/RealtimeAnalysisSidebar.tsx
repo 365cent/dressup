@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
-import { X, ChevronRight, ChevronLeft, Shirt, Watch, AlertCircle } from "lucide-react"
+import { X, ChevronRight, ChevronLeft, Shirt, Watch, AlertCircle, Heart, Palette, Ruler } from "lucide-react" // Added icons
 import type { OutfitAnalysis } from "@/lib/clothing-analysis-service"
 
 interface RealtimeAnalysisSidebarProps {
@@ -14,6 +14,29 @@ interface RealtimeAnalysisSidebarProps {
   lastUpdated: Date | null
 }
 
+// Helper component for score bars (similar to RealtimeScore)
+const ScoreBar: React.FC<{ score: number; label: string; icon?: React.ElementType }> = ({ score, label, icon: Icon }) => {
+  const displayScore = Math.max(0, Math.min(100, score)); // Clamp score 0-100
+  return (
+    <div className="space-y-1">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center text-sm">
+          {Icon && <Icon className="w-4 h-4 mr-1.5 text-gray-400" />}
+          <span className="capitalize">{label}</span>
+        </div>
+        <span className="text-sm">{Math.round(displayScore)}%</span>
+      </div>
+      <div className="h-2 bg-white bg-opacity-10 rounded-full overflow-hidden">
+        <div
+          className="h-full bg-white"
+          style={{ width: `${displayScore}%` }}
+        ></div>
+      </div>
+    </div>
+  );
+};
+
+
 export default function RealtimeAnalysisSidebar({
   isOpen,
   onToggle,
@@ -22,7 +45,7 @@ export default function RealtimeAnalysisSidebar({
   isTabVisible,
   lastUpdated,
 }: RealtimeAnalysisSidebarProps) {
-  const [expandedSection, setExpandedSection] = useState<string | null>(null)
+  const [expandedSection, setExpandedSection] = useState<string | null>("scores") // Default open scores
 
   const toggleSection = (section: string) => {
     if (expandedSection === section) {
@@ -45,6 +68,7 @@ export default function RealtimeAnalysisSidebar({
     const diffMinutes = Math.floor(diffSeconds / 60)
     return `${diffMinutes} ${diffMinutes === 1 ? "minute" : "minutes"} ago`
   }
+
 
   return (
     <>
@@ -88,6 +112,7 @@ export default function RealtimeAnalysisSidebar({
                 <span className="text-xs text-gray-400">{getLastUpdatedText()}</span>
               </div>
 
+
               {isLoading ? (
                 <div className="flex-grow flex flex-col items-center justify-center">
                   <div className="w-10 h-10 border-2 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -99,6 +124,39 @@ export default function RealtimeAnalysisSidebar({
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* --- New Overall Scores Section --- */}
+                  <div>
+                    <button
+                      onClick={() => toggleSection("scores")}
+                      className="w-full flex items-center justify-between p-3 bg-white bg-opacity-5 rounded-xl hover:bg-opacity-10 transition-all duration-300"
+                    >
+                      <h3 className="text-lg font-medium">Overall Scores</h3>
+                      <ChevronRight
+                        className={`w-5 h-5 transition-transform duration-300 ${
+                          expandedSection === "scores" ? "rotate-90" : ""
+                        }`}
+                      />
+                    </button>
+                    <AnimatePresence>
+                      {expandedSection === "scores" && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="p-4 bg-white bg-opacity-5 mt-1 rounded-xl space-y-3">
+                            <ScoreBar score={analysis.comfort} label="Comfort" icon={Heart} />
+                            <ScoreBar score={analysis.fitConfidence} label="Fit Confidence" icon={Ruler} />
+                            <ScoreBar score={analysis.colorHarmony} label="Color Harmony" icon={Palette} />
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  {/* --- End New Section --- */}
+
                   {/* Style Profile */}
                   <div>
                     <button
@@ -142,6 +200,7 @@ export default function RealtimeAnalysisSidebar({
                       )}
                     </AnimatePresence>
                   </div>
+
 
                   {/* Clothing Items */}
                   <div>
@@ -228,6 +287,7 @@ export default function RealtimeAnalysisSidebar({
                     </AnimatePresence>
                   </div>
 
+
                   {/* Accessories */}
                   <div>
                     <button
@@ -305,6 +365,7 @@ export default function RealtimeAnalysisSidebar({
                     </AnimatePresence>
                   </div>
 
+
                   {/* Color Palette */}
                   <div>
                     <button
@@ -345,6 +406,7 @@ export default function RealtimeAnalysisSidebar({
                       )}
                     </AnimatePresence>
                   </div>
+
 
                   {/* Occasions & Season */}
                   <div>
@@ -391,6 +453,7 @@ export default function RealtimeAnalysisSidebar({
                       )}
                     </AnimatePresence>
                   </div>
+
                 </div>
               )}
             </div>
