@@ -2,7 +2,9 @@ import { NextResponse } from 'next/server';
 import { getImage } from '@/lib/fs-utils'; // Import the refactored function
 
 export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const imageId = params.id;
+  // Await the params before accessing properties
+  const resolvedParams = await params;
+  const imageId = resolvedParams.id;
 
   if (!imageId) {
     return new NextResponse('Image ID not provided', { status: 400 });

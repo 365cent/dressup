@@ -102,20 +102,31 @@ async function ensurePathsInitialized(): Promise<void> {
 // Create necessary directories - Server-side only now
 // --- MODIFICATION START: Make initDataDirectories async ---
 export async function initDataDirectories(): Promise<{ success: boolean; message?: string }> {
-// --- MODIFICATION END ---
   if (!isServer) {
      console.warn("initDataDirectories called on client, skipping FS operations.");
      return { success: true, message: "Skipped on client" };
   }
   try {
     await ensurePathsInitialized(); // This will create dirs if they don't exist
-    console.log("Data directories ensured/initialized successfully.");
+    
+    // Verify the directories exist and are writable
+    const testPath = path.join(IMAGES_DIR!, '.test');
+    await fs.writeFile(testPath, 'test');
+    await fs.unlink(testPath);
+    
+    console.log("Data directories verified writable:");
+    console.log(`DATA_DIR: ${DATA_DIR}`);
+    console.log(`IMAGES_DIR: ${IMAGES_DIR}`);
+    console.log(`ANALYSIS_DIR: ${ANALYSIS_DIR}`);
+    console.log(`FEEDBACK_DIR: ${FEEDBACK_DIR}`);
+    
     return { success: true };
   } catch (error) {
     console.error("Error ensuring data directories:", error);
     return { success: false, message: error instanceof Error ? error.message : String(error) };
   }
 }
+// --- MODIFICATION END ---
 
 // Safe initialization check - remains the same
 export function isInitialized(): boolean {
@@ -127,7 +138,6 @@ export function isInitialized(): boolean {
 // --- MODIFICATION START: Make saveImage async ---
 export async function saveImage(imageData: string, imageId?: string): Promise<string> {
   await ensureServer('saveImage');
-// --- MODIFICATION END ---
   await ensurePathsInitialized();
 
   // Generate ID if not provided
@@ -140,14 +150,19 @@ export async function saveImage(imageData: string, imageId?: string): Promise<st
   const filePath = path.join(IMAGES_DIR!, `${id}.jpg`); // Assume jpg for simplicity
 
   try {
+    console.log(`DEBUG: Attempting to save image with ID ${id} to ${filePath}`);
+    console.log(`DEBUG: IMAGES_DIR is set to ${IMAGES_DIR}`);
     await fs.writeFile(filePath, buffer);
-    console.log(`Image saved: ${filePath}`);
+    // Verify the file was actually created
+    const stats = await fs.stat(filePath);
+    console.log(`DEBUG: Image saved: ${filePath}, size: ${stats.size} bytes`);
     return id;
   } catch (error) {
     console.error(`Error saving image ${id}:`, error);
     throw new Error(`Failed to save image: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
+// --- MODIFICATION END ---
 
 // Save analysis data - Server-side only
 // --- MODIFICATION START: Make saveAnalysisData async ---
